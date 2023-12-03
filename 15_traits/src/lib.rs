@@ -46,7 +46,7 @@ impl Summary for Tweet {
 }
 
 pub fn notify(item: &impl Summary) {  
-    // accepts any type that implements the specified trait
+    // accepts any type that implements the Summary trait
     // we can call any methods on item that come from the Summary trait
     println!("Breaking news! {}", item.summarize());
 }
