@@ -13,11 +13,25 @@ impl<T> MyBox<T> {
         MyBox(x)
     }
 }
-impl<T> Deref for MyBox<T> {
+impl<T: std::fmt::Display> Deref for MyBox<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
+        println!("Dereferencing value: {}", &self.0);
         &self.0 // .0 accesses the first vaue in a tuple struct
+    }
+}
+
+struct CustomSmartPointer {
+    data: String,
+}
+
+impl Drop for CustomSmartPointer {
+    fn drop(&mut self) {
+        // Automatically called when variable goes out of scope
+        // Here is where you would place any logic that you wanted to run when an
+        // instance of your type goes out of scope.
+        println!("Dropping CustomSmartPointer with data {}", self.data)
     }
 }
 
@@ -41,6 +55,22 @@ fn main() {
     // Deref coercion - deref() called automatically, as many times as is necessary, to match function signature
     let m = MyBox::new(String::from("Rust"));
     hello(&m);
+
+    let c = CustomSmartPointer {
+        data: String::from("my stuff"),
+    };
+    let d = CustomSmartPointer {
+        data: String::from("other stuff"),
+    };
+    println!("CustomSmartPointers created");
+
+    // Dropping a Value Early with std::mem::drop
+    let c = CustomSmartPointer {
+        data: String::from("some data"),
+    };
+    println!("CustomSmartPointer created.");
+    drop(c);
+    println!("CustomSmartPointer dropped before the end of main.");
 }
 
 fn hello(name: &str) {
