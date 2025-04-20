@@ -1,0 +1,6 @@
+{
+    "vim.easymotion": true,
+    "vim.enableNeovim": true,
+    "vim.neovimUseConfigFile": true,
+    "vim.smartRelativeLine": true
+}

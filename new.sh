@@ -8,10 +8,10 @@ if [ ! $number ] || [ ! $name ]; then
     exit 1
 fi
 
-if [ -z $($number | grep "^-\?[0-9]+$") ]; then 
-    echo -e "Expected int, got $number"
-    exit 1
-fi
+# if [ -z $($number | grep "^-\?[0-9]+$") ]; then 
+#     echo -e "Expected int, got $number"
+#     exit 1
+# fi
 
 cd /Users/ta4h1r/Dev/rust_tutorials
 cargo new $name 
