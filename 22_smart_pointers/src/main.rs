@@ -1,10 +1,18 @@
-use crate::List::{Cons, Nil};
 use std::ops::Deref;
+use std::rc::Rc;
 
 enum List {
     Cons(i32, Box<List>),
     Nil,
 }
+
+enum SharedList {
+    SharedCons(i32, Rc<SharedList>),
+    SharedNil,
+}
+
+use crate::List::{Cons, Nil}; // brings the Cons and Nil variants into scope from the List enum defined in the current crate
+use crate::SharedList::{SharedCons, SharedNil};
 
 struct MyBox<T>(T); // tuple struct with one element of type T
 
@@ -13,6 +21,7 @@ impl<T> MyBox<T> {
         MyBox(x)
     }
 }
+
 impl<T: std::fmt::Display> Deref for MyBox<T> {
     type Target = T;
 
@@ -71,6 +80,17 @@ fn main() {
     println!("CustomSmartPointer created.");
     drop(c);
     println!("CustomSmartPointer dropped before the end of main.");
+
+    // Reference counters for shared refs
+    let a = Rc::new(SharedCons(5, Rc::new(SharedCons(10, Rc::new(SharedNil)))));
+    println!("count after creating a = {}", Rc::strong_count(&a));
+    let b = SharedCons(3, Rc::clone(&a));
+    println!("count after creating b = {}", Rc::strong_count(&a));
+    {
+        let c = SharedCons(4, Rc::clone(&a)); // Rc::clone() increases ref count; not deep copy
+        println!("count after creating c = {}", Rc::strong_count(&a));
+    }
+    println!("count after c goes out of scope = {}", Rc::strong_count(&a)); // the implementation of the Drop trait decreases the reference count automatically when an Rc<T> value goes out of scope
 }
 
 fn hello(name: &str) {
