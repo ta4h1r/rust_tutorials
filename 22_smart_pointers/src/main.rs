@@ -1,5 +1,6 @@
+use std::cell::RefCell;
 use std::ops::Deref;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 enum List {
     Cons(i32, Box<List>),
@@ -11,8 +12,15 @@ enum SharedList {
     SharedNil,
 }
 
+#[derive(Debug)]
+enum SharedMutableList {
+    SharedMutableCons(Rc<RefCell<i32>>, Rc<SharedMutableList>),
+    SharedMutableNil,
+}
+
 use crate::List::{Cons, Nil}; // brings the Cons and Nil variants into scope from the List enum defined in the current crate
 use crate::SharedList::{SharedCons, SharedNil};
+use crate::SharedMutableList::{SharedMutableCons, SharedMutableNil};
 
 struct MyBox<T>(T); // tuple struct with one element of type T
 
@@ -44,6 +52,13 @@ impl Drop for CustomSmartPointer {
     }
 }
 
+#[derive(Debug)]
+struct Node {
+    value: i32,
+    parent: RefCell<Weak<Node>>,
+    children: RefCell<Vec<Rc<Node>>>,
+}
+
 fn main() {
     let _list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
 
@@ -65,6 +80,7 @@ fn main() {
     let m = MyBox::new(String::from("Rust"));
     hello(&m);
 
+    // Creating pointers to be dropped later, when the variable goes out of scope
     let c = CustomSmartPointer {
         data: String::from("my stuff"),
     };
@@ -73,7 +89,7 @@ fn main() {
     };
     println!("CustomSmartPointers created");
 
-    // Dropping a Value Early with std::mem::drop
+    // Dropping a value early with std::mem::drop
     let c = CustomSmartPointer {
         data: String::from("some data"),
     };
@@ -82,15 +98,53 @@ fn main() {
     println!("CustomSmartPointer dropped before the end of main.");
 
     // Reference counters for shared refs
-    let a = Rc::new(SharedCons(5, Rc::new(SharedCons(10, Rc::new(SharedNil)))));
-    println!("count after creating a = {}", Rc::strong_count(&a));
-    let b = SharedCons(3, Rc::clone(&a));
-    println!("count after creating b = {}", Rc::strong_count(&a));
+    let _a = Rc::new(SharedCons(5, Rc::new(SharedCons(10, Rc::new(SharedNil)))));
+    println!("count after creating a = {}", Rc::strong_count(&_a));
+    let _b = SharedCons(3, Rc::clone(&_a));
+    println!("count after creating b = {}", Rc::strong_count(&_a));
     {
-        let c = SharedCons(4, Rc::clone(&a)); // Rc::clone() increases ref count; not deep copy
-        println!("count after creating c = {}", Rc::strong_count(&a));
+        let _c = SharedCons(4, Rc::clone(&_a)); // Rc::clone() increases ref count; not deep copy
+        println!("count after creating c = {}", Rc::strong_count(&_a));
     }
-    println!("count after c goes out of scope = {}", Rc::strong_count(&a)); // the implementation of the Drop trait decreases the reference count automatically when an Rc<T> value goes out of scope
+    println!(
+        "count after c goes out of scope = {}",
+        Rc::strong_count(&_a)
+    ); // the implementation of the Drop trait decreases the reference count automatically when an Rc<T> value goes out of scope
+
+    // Multiple owners of mutable data
+    let value = Rc::new(RefCell::new(5));
+    let a = Rc::new(SharedMutableCons(
+        Rc::clone(&value),
+        Rc::new(SharedMutableNil),
+    ));
+
+    let b = SharedMutableCons(Rc::new(RefCell::new(3)), Rc::clone(&a));
+    let c = SharedMutableCons(Rc::new(RefCell::new(4)), Rc::clone(&a));
+
+    *value.borrow_mut() += 10;
+
+    println!("a after = {:?}", a);
+    println!("b after = {:?}", b);
+    println!("c after = {:?}", c);
+
+    // Creating a tree data structure
+    let leaf = Rc::new(Node {
+        value: 3,
+        parent: RefCell::new(Weak::new()),
+        children: RefCell::new(vec![]),
+    });
+
+    println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+
+    let branch = Rc::new(Node {
+        value: 5,
+        parent: RefCell::new(Weak::new()),
+        children: RefCell::new(vec![Rc::clone(&leaf)]),
+    });
+
+    *leaf.parent.borrow_mut() = Rc::downgrade(&branch); // sets branch as leaf's parent
+
+    println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
 }
 
 fn hello(name: &str) {
